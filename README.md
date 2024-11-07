@@ -1,57 +1,67 @@
-# Project Name
+<!--
+---
+name: Azure Functions end-to-end CSV to JSON converter with Performance Optimizer
+description: This repository contains an Azure Functions end-to-end sample with an HTTP function that converts CSV to JSON, deployed to Azure Functions Flex Consumption, and highlights the Performance Optimizer feature to help right size the instance size and HTTP concurrency for the app. The sample also uses managed identity and a virtual network to make sure deployment is secure by default.
+page_type: sample
+products:
+- azure-functions
+- azure
+- entra-id
+- azure-load-testing
+urlFragment: functions-e2e-perf-optimizer-csv-to-json
+languages:
+- python
+- bicep
+- azdeveloper
+---
+-->
 
-(short, 1-3 sentenced, description of the project)
+# Azure Functions end-to-end CSV to JSON converter with Performance Optimizer
 
-## Features
+This repository contains an Azure Functions end-to-end sample with an HTTP function that converts CSV to JSON, deployed to Azure Functions Flex Consumption, and highlights the Performance Optimizer feature to help right size the instance size and HTTP concurrency for the app. The sample also uses managed identity and a virtual network to make sure deployment is secure by default.
 
-This project framework provides the following features:
+## Prerequisites
 
-* Feature 1
-* Feature 2
-* ...
++ [Python 3.11](https://www.python.org/)
++ [Azure Developer CLI (AZD)](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd)
 
-## Getting Started
+## Deploy to Azure
 
-### Prerequisites
+Run this command to provision the function app, with any required Azure resources, and deploy your code:
 
-(ideally very short, if any)
+```shell
+azd up
+```
 
-- OS
-- Library version
-- ...
+Alternatively, you can opt-out of a VNet being used in the sample. To do so, use `azd env` to configure `SKIP_VNET` to `true` before running `azd up`:
 
-### Installation
+```bash
+azd env set SKIP_VNET true
+azd up
+```
 
-(ideally very short)
+You're prompted to supply these required deployment parameters:
 
-- npm install [package name]
-- mvn install
-- ...
+| Parameter | Description |
+| ---- | ---- |
+| _Environment name_ | An environment that's used to maintain a unique deployment context for your app. You won't be prompted if you created the local project using `azd init`.|
+| _Azure subscription_ | Subscription in which your resources are created.|
+| _Azure location_ | Azure region in which to create the resource group that contains the new Azure resources. Only regions that currently support the Flex Consumption plan are shown.|
 
-### Quickstart
-(Add steps to get up and running quickly)
+After publish completes successfully, the required Azure Function and Azure Load Testing resources have been created, as well as a Performance Optimizer profile.
 
-1. git clone [repository clone url]
-2. cd [repository name]
-3. ...
+## Inspect the solution (optional)
 
+TODO: Fill out
 
-## Demo
+## Test the solution
 
-A demo app is included to show how to use the project.
+TODO: Fill out
 
-To run the demo, follow these steps:
+## Clean up resources
 
-(Add steps to start up the demo)
+When you no longer need the resources created in this sample, you can use this command to delete the resources from Azure and avoid incurring any further costs:
 
-1.
-2.
-3.
-
-## Resources
-
-(Any additional resources or related projects)
-
-- Link to supporting information
-- Link to similar sample
-- ...
+```shell
+azd down
+```
