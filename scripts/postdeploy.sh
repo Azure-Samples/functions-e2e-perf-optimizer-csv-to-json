@@ -27,7 +27,7 @@ FunctionAppComponentType='microsoft.web/sites'
 
 # Load Test Configuration
 EngineInstances=1
-TestDuration=60
+TestDurationInSec=60
 VirtualUsers=25
 RampUpTime=0
 LoadTestDisplayName="Test_$(date +'%Y%m%d%H%M%S')"
@@ -73,7 +73,7 @@ Get_UrlTestConfig() {
   "testSetup": [
     {
       "virtualUsersPerEngine": $VirtualUsers,
-      "durationInSeconds": $TestDuration,
+      "durationInSeconds": $TestDurationInSec,
       "loadType": "Linear",
       "scenario": "requestGroup1",
       "rampUpTimeInSeconds": $RampUpTime

@@ -20,14 +20,14 @@ $FunctionAppResourceId = ${env:AZURE_FUNCTION_APP_RESOURCE_ID}
 $LoadTestResourceName = ${env:AZURE_LOADTEST_RESOURCE_NAME}
 $ResourceGroupName = ${env:RESOURCE_GROUP}
 $TestId = ${env:LOADTEST_TEST_ID}
-$DataPlaneURL = "https://" + ${LOADTEST_DP_URL}.Trim('"')
+$DataPlaneURL = "https://" + ${env:LOADTEST_DP_URL}.Trim('"')
 $TestProfileId = ${env:LOADTEST_PROFILE_ID}
 $TestFileName = 'url-test.json'
 $FunctionAppComponentType = 'microsoft.web/sites'
 
 # Load Test Configuration
 $EngineInstances = 1
-$TestDuration = 60
+$TestDurationInSec = 60
 $VirtualUsers = 25
 $RampUpTime = 0
 $LoadTestDisplayName = "Test_" + (Get-Date).ToString('yyyyMMddHHmmss');
@@ -187,7 +187,7 @@ Add-AppComponentMetrics -MetricName "AlwaysReadyUnits" -Aggregation "Average"
 
 # Upload Test Plan
 Log "Upload test plan to test with testId: $TestId"
-$TestPlan = Get-UrlTestConfig -FunctionName $FunctionAppName -TriggerName $FunctionAppTriggerName -VirtualUsers $VirtualUsers -DurationInSeconds $TestDuration -RampUpTime $RampUpTime
+$TestPlan = Get-UrlTestConfig -FunctionName $FunctionAppName -TriggerName $FunctionAppTriggerName -VirtualUsers $VirtualUsers -DurationInSeconds $TestDurationInSec -RampUpTime $RampUpTime
 $TestPlanUploadURL = "$DataPlaneURL/tests/$TestId/files/$TestFileName`?api-version=$ApiVersion`&fileType=URL_TEST_CONFIG"
 Log $TestPlanUploadURL
 $TestPlanUploadResp = Upload-TestFile -URL $TestPlanUploadURL -FileContent $TestPlan
