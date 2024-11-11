@@ -31,6 +31,11 @@ var tags = { 'azd-env-name': environmentName }
 var functionAppName = !empty(csvtojsonServiceName) ? csvtojsonServiceName : '${abbrs.webSitesFunctions}csvtojson-${resourceToken}'
 var deploymentStorageContainerName = 'app-package-${take(functionAppName, 32)}-${take(toLower(uniqueString(functionAppName, resourceToken)), 7)}'
 
+var altResName = '${abbrs.loadtesting}${resourceToken}'
+var profileMappingName = guid(toLower(uniqueString(subscription().id, altResName)))
+var testProfileId = '${abbrs.loadtestingProfiles}${guid(toLower(uniqueString(subscription().id, altResName)))}'
+var loadtestTestId = '${abbrs.loadtestingTests}${guid(toLower(uniqueString(subscription().id, altResName)))}'
+
 // Organize resources in a resource group
 resource rg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
   name: !empty(resourceGroupName) ? resourceGroupName : '${abbrs.resourcesResourceGroups}${environmentName}'
@@ -163,9 +168,38 @@ module appInsightsRoleAssignmentCSVtoJSON './core/monitor/appinsights-access.bic
   }
 }
 
+// Setup Azure load testing Resource
+module loadtesting './core/loadtesting/loadtests.bicep' = {
+  name: 'loadtesting'
+  scope: rg
+  params: {
+    name: altResName
+    tags: tags 
+    location: location
+  }
+}
+
+module loadtestProfileMapping './core/loadtesting/testprofile-mapping.bicep' = {
+   name: 'loadtestprofilemapping'
+   scope: rg
+   params: {
+    testProfileMappingName : profileMappingName
+    functionAppResourceName:  csvtojson.outputs.SERVICE_API_NAME
+    loadTestingResourceName:  loadtesting.outputs.name
+    loadTestProfileId: testProfileId
+    }
+  }
+
 // App outputs
 output APPLICATIONINSIGHTS_CONNECTION_STRING string = monitoring.outputs.applicationInsightsConnectionString
+output RESOURCE_GROUP string = rg.name
 output AZURE_LOCATION string = location
 output AZURE_TENANT_ID string = tenant().tenantId
 output SERVICE_API_NAME string = csvtojson.outputs.SERVICE_API_NAME
 output AZURE_FUNCTION_NAME string = csvtojson.outputs.SERVICE_API_NAME
+output AZURE_FUNCTION_APP_RESOURCE_ID string = csvtojson.outputs.SERVICE_API_RESOURCE_ID
+output AZURE_FUNCTION_APP_TRIGGER_NAME string = csvtojson.name
+output LOADTEST_DP_URL string = loadtesting.outputs.uri
+output LOADTEST_PROFILE_ID string =  testProfileId
+output LOADTEST_TEST_ID string = loadtestTestId
+output AZURE_LOADTEST_RESOURCE_NAME string = loadtesting.outputs.name

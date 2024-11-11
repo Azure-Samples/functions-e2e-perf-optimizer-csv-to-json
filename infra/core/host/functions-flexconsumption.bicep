@@ -83,5 +83,6 @@ resource applicationInsights 'Microsoft.Insights/components@2020-02-02' existing
 }
 
 output name string = functions.name
+output id string = functions.id
 output uri string = 'https://${functions.properties.defaultHostName}'
 output identityPrincipalId string = identityType == 'SystemAssigned' ? functions.identity.principalId : ''
