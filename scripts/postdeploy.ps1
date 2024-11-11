@@ -20,8 +20,10 @@ $FunctionAppResourceId = ${env:AZURE_FUNCTION_APP_RESOURCE_ID}
 $LoadTestResourceName = ${env:AZURE_LOADTEST_RESOURCE_NAME}
 $ResourceGroupName = ${env:RESOURCE_GROUP}
 $TestId = ${env:LOADTEST_TEST_ID}
+$DataPlaneURL = "https://" + ${LOADTEST_DP_URL}.Trim('"')
 $TestProfileId = ${env:LOADTEST_PROFILE_ID}
 $TestFileName = 'url-test.json'
+$FunctionAppComponentType = 'microsoft.web/sites'
 
 # Load Test Configuration
 $EngineInstances = 1
@@ -139,7 +141,7 @@ function Poll-TestProfileRun($TestProfileRunURL) {
     $Resp = Invoke-RestMethod -Method GET -Uri $TestProfileRunURL -Authentication Bearer -Token $AccessToken
     Log "Current Status: $($Resp.status)"
     $PollCount = 0
-    while ($Resp.status -ne 'DONE' -and $Resp.validationStatus -ne 'FAILED') {
+    while ($Resp.status -ne 'DONE' -and $Resp.status -ne 'FAILED') {
         if ($PollCount -gt 150) {
             Log "Polling count exceeded 150, exiting"
             break
@@ -152,18 +154,17 @@ function Poll-TestProfileRun($TestProfileRunURL) {
     }
 }
 
+function Add-AppComponentMetrics($MetricName, $Aggregation) {
+    $MetricId = "$FunctionAppResourceId/providers/microsoft.insights/metricdefinitions/$MetricName";
+    az load test server-metric add --test-id $TestId --load-test-resource $LoadTestResourceName --resource-group $ResourceGroupName --metric-id $MetricId --metric-name $MetricName --metric-namespace $FunctionAppComponentType --aggregation $Aggregation --app-component-type $FunctionAppComponentType --app-component-id $FunctionAppResourceId
+}
+
 function Log($String) {
     Write-Debug $String
 }
 
 # Ensure az load extension is installed
 az extension add --name load
-
-# Get Dataplane URL for Load Testing Resource
-$DataPlaneURL = az load show -n $LoadTestResourceName -g $ResourceGroupName --query dataPlaneURI
-$DataPlaneURL = "https://" + $DataPlaneURL.Trim('"')
-Log "DataplaneURL: $DataPlaneURL"
-
 
 # Create Load Test
 Log "Creating test with testId: $TestId"
@@ -175,6 +176,14 @@ if (az load test show --name $LoadTestResourceName --test-id $TestId --resource-
     az load test create --name $LoadTestResourceName --test-id $TestId  --display-name $LoadTestDisplayName --resource-group $ResourceGroupName --engine-instances $EngineInstances
 }
 Write-Host -ForegroundColor Green "Successfully created a load test"
+
+Log "Configuring app component and Metrics"
+az load test app-component add --test-id $TestId --load-test-resource $LoadTestResourceName --resource-group $ResourceGroupName --app-component-name $FunctionAppName --app-component-type $FunctionAppComponentType --app-component-id $FunctionAppResourceId --app-component-kind "function" 
+Add-AppComponentMetrics -MetricName "OnDemandFunctionExecutionCount" -Aggregation "Total"
+Add-AppComponentMetrics -MetricName "AlwaysReadyFunctionExecutionCount" -Aggregation "Total"
+Add-AppComponentMetrics -MetricName "OnDemandFunctionExecutionUnits" -Aggregation "Average"
+Add-AppComponentMetrics -MetricName "AlwaysReadyFunctionExecutionUnits" -Aggregation "Average"
+Add-AppComponentMetrics -MetricName "AlwaysReadyUnits" -Aggregation "Average"
 
 # Upload Test Plan
 Log "Upload test plan to test with testId: $TestId"
@@ -220,19 +229,21 @@ $TestProfileRequest = @{
 $TestProfileResp = Call-AzureLoadTesting -URL "$DataPlaneURL/test-profiles/$TestProfileId`?api-version=$ApiVersion" -Method 'PATCH' -Body $TestProfileRequest
 Write-Host -ForegroundColor Green "Successfully created the test profile"
 
+# Not Running Test Profile Run by default
+
 # Create Test Profile Run
-$TestProfileRunRequest = @{
-    "testProfileId" = $TestProfileId;
-    "displayName" = $TestProfileRunDisplayName;
-}
+# $TestProfileRunRequest = @{
+#     "testProfileId" = $TestProfileId;
+#     "displayName" = $TestProfileRunDisplayName;
+# }
 
-$TestProfileRunId = New-Guid 
-$testProfileRunUrl = "$DataPlaneURL/test-profile-runs/$TestProfileRunId" + "?api-version=$ApiVersion"
+# $TestProfileRunId = New-Guid 
+# $testProfileRunUrl = "$DataPlaneURL/test-profile-runs/$TestProfileRunId" + "?api-version=$ApiVersion"
 
-$TestProfileRunId = (New-Guid).ToString()
-Log "Creating TestProfileRun with ID: $TestProfileRunId"
-$TestProfileRunURL = "$DataPlaneURL/test-profile-runs/$TestProfileRunId`?api-version=$ApiVersion"
-$TestProfileRunResp = Call-AzureLoadTesting -URL $TestProfileRunURL -Method 'PATCH' -Body $TestProfileRunRequest
-Write-Host -ForegroundColor Green "Successfully created the test profile run"
+# $TestProfileRunId = (New-Guid).ToString()
+# Log "Creating TestProfileRun with ID: $TestProfileRunId"
+# $TestProfileRunURL = "$DataPlaneURL/test-profile-runs/$TestProfileRunId`?api-version=$ApiVersion"
+# $TestProfileRunResp = Call-AzureLoadTesting -URL $TestProfileRunURL -Method 'PATCH' -Body $TestProfileRunRequest
+# Write-Host -ForegroundColor Green "Successfully created the test profile run"
 
-Poll-TestProfileRun -TestProfileRunURL $TestProfileRunURL
+# Poll-TestProfileRun -TestProfileRunURL $TestProfileRunURL

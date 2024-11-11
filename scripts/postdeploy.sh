@@ -20,8 +20,10 @@ FunctionAppResourceId="${AZURE_FUNCTION_APP_RESOURCE_ID}"
 LoadTestResourceName="${AZURE_LOADTEST_RESOURCE_NAME}"
 ResourceGroupName="${RESOURCE_GROUP}"
 TestId="${LOADTEST_TEST_ID}"
+DataPlaneURL="https://$(echo "${LOADTEST_DP_URL}" | tr -d '"')"
 TestProfileId="${LOADTEST_PROFILE_ID}"
 TestFileName='url-test.json'
+FunctionAppComponentType='microsoft.web/sites'
 
 # Load Test Configuration
 EngineInstances=1
@@ -80,6 +82,7 @@ Get_UrlTestConfig() {
 }
 EOF
 )
+  echo "$Config"
 }
 
 Call_AzureLoadTesting() {
@@ -149,16 +152,22 @@ Poll_TestProfileRun() {
   done
 }
 
+Add_AppComponentMetrics() {
+  MetricName=$1
+  Aggregation=$2
+  MetricId="$FunctionAppResourceId/providers/microsoft.insights/metricdefinitions/$MetricName"
+  az load test server-metric add --test-id "$TestId" --load-test-resource "$LoadTestResourceName" --resource-group "$ResourceGroupName" --metric-id "$MetricId" --metric-name "$MetricName" --metric-namespace "$FunctionAppComponentType" --aggregation "$Aggregation" --app-component-type "$FunctionAppComponentType" --app-component-id "$FunctionAppResourceId"
+}
+
+Log() {
+  echo "$1"
+}
+
 # Ensure az load extension is installed
 az extension add --name load
 
-# Get Dataplane URL for Load Testing Resource
-DataPlaneURL=$(az load show -n "$LoadTestResourceName" -g "$ResourceGroupName" --query dataPlaneURI)
-DataPlaneURL="https://$(echo "$DataPlaneURL" | tr -d '"')"
-echo "DataplaneURL: $DataPlaneURL"
-
 # Create Load Test
-echo "Creating test with testId: $TestId"
+Log "Creating test with testId: $TestId"
 if az load test show --name "$LoadTestResourceName" --test-id "$TestId" --resource-group "$ResourceGroupName"; then
   echo "Test with ID: $TestId already exists"
   az load test update --name "$LoadTestResourceName" --test-id "$TestId" --display-name "$LoadTestDisplayName" --resource-group "$ResourceGroupName" --engine-instances "$EngineInstances"
@@ -168,59 +177,29 @@ else
 fi
 echo "Successfully created a load test"
 
-# Upload Test Plan
-echo "Upload test plan to test with testId: $TestId"
-TestPlan=$(Get_UrlTestConfig)
-TestPlanUploadURL="$DataPlaneURL/tests/$TestId/files/$TestFileName?api-version=$ApiVersion&fileType=URL_TEST_CONFIG"
+Log "Configuring app component and Metrics"
+az load test app-component add --test-id "$TestId" --load-test-resource "$LoadTestResourceName" --resource-group "$ResourceGroupName" --app-component-name "$FunctionAppName" --app-component-type "$FunctionAppComponentType" --app-component-id "$FunctionAppResourceId" --app-component-kind "function"
+Add_AppComponentMetrics "OnDemandFunctionExecutionCount" "Total"
+Add_AppComponentMetrics "AlwaysReadyFunctionExecutionCount" "Total"
+Add_AppComponentMetrics "OnDemandFunctionExecutionUnits" "Average"
+Add_AppComponentMetrics "AlwaysReadyFunctionExecutionUnits" "Average"
+Add_AppComponentMetrics "AlwaysReadyUnits" "Average"
 
-TestPlanUploadResp=$(Upload_TestFile "$TestPlanUploadURL" "$TestPlan")
-echo "Successfully uploaded the test plan to the test"
-
-# Create Test Profile
-TestProfileRequest=$(cat <<EOF
-{
-  "displayName": "$TestProfileDisplayName",
-  "description": "$TestProfileDescription",
-  "testId": "$TestId",
-  "targetResourceId": "$FunctionAppResourceId",
-  "targetResourceConfigurations": {
-    "kind": "FunctionsFlexConsumption",
-    "configurations": {
-      "config1": {
-        "instanceMemoryMB": "2048",
-        "httpConcurrency": 1
-      },
-      "config2": {
-        "instanceMemoryMB": "2048",
-        "httpConcurrency": 4
-      },
-      "config3": {
-        "instanceMemoryMB": "2048",
-        "httpConcurrency": 16
-      },
-      "config4": {
-        "instanceMemoryMB": "4096",
-        "httpConcurrency": 1
-      },
-      "config5": {
-        "instanceMemoryMB": "4096",
-        "httpConcurrency": 4
-      }
-    }
-  }
-}
-EOF
-)
-TestProfileResp=$(Call_AzureLoadTesting "$DataPlaneURL/test-profiles/$TestProfileId?api-version=$ApiVersion" 'PATCH' "$TestProfileRequest")
-echo "Successfully created the test profile"
+# Not Running Test Profile Run by default
 
 # Create Test Profile Run
-TestProfileRunRequest=$(cat <<EOF
-{
-  "testProfileId": "$TestProfileId",
-  "displayName": "$TestProfileRunDisplayName"
-}
-EOF
-)
-TestProfileRunId=$(uuidgen)
-TestProfileRunURL="$DataPlaneURL/test-profile-runs/$TestProfileRunId?api-version=$ApiVersion"
+# TestProfileRunRequest=$(cat <<EOF
+# {
+#   "testProfileId": "$TestProfileId",
+#   "displayName": "$TestProfileRunDisplayName"
+# }
+# EOF
+# )
+# TestProfileRunId=$(uuidgen)
+# TestProfileRunURL="$DataPlaneURL/test-profile-runs/$TestProfileRunId?api-version=$ApiVersion"
+
+# echo "Creating TestProfileRun with ID: $TestProfileRunId"
+# TestProfileRunResp=$(curl -X PATCH -H "Authorization: Bearer $(Get_LoadTestingAccessToken)" -H "Content-Type: application/json" -d "$TestProfileRunRequest" "$TestProfileRunURL")
+# echo "Successfully created the test profile run"
+
+# Poll_TestProfileRun "$TestProfileRunURL"

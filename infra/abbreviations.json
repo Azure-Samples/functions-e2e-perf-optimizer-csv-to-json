@@ -57,7 +57,7 @@
     "kustoClustersDatabases": "dedb",
     "loadtesting": "alt-",
     "loadtestingTests": "altt-",
-    "loadtestingProfiles": "altp-",
+    "loadtestingProfiles": "alttp-",
     "logicIntegrationAccounts": "ia-",
     "logicWorkflows": "logic-",
     "machineLearningServicesWorkspaces": "mlw-",
