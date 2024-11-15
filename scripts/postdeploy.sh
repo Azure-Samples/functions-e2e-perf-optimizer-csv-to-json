@@ -17,10 +17,11 @@ FunctionAppTriggerName="${AZURE_FUNCTION_APP_TRIGGER_NAME}"
 FunctionAppResourceId="${AZURE_FUNCTION_APP_RESOURCE_ID}"
 
 # ALT Resource Details
+LoadTestResourceId="${AZURE_LOADTEST_RESOURCE_ID}"
 LoadTestResourceName="${AZURE_LOADTEST_RESOURCE_NAME}"
 ResourceGroupName="${RESOURCE_GROUP}"
 TestId="${LOADTEST_TEST_ID}"
-DataPlaneURL="https://$(echo "${LOADTEST_DP_URL}" | tr -d '"')"
+DataPlaneURL="https://${LOADTEST_DP_URL//\"/}"
 TestProfileId="${LOADTEST_PROFILE_ID}"
 TestFileName='url-test.json'
 FunctionAppComponentType='microsoft.web/sites'
