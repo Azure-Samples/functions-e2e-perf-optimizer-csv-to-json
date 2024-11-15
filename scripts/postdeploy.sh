@@ -333,13 +333,13 @@ EOF
         exit 1
     fi
 
-    local encoded_function_resource_id
-    encoded_function_resource_id=$(url_encode_with_capital_hex "$FunctionAppResourceId")
-    local encoded_alt_resource_id
-    encoded_alt_resource_id=$(url_encode_with_capital_hex "$LoadTestResourceId")
+    # local encoded_function_resource_id
+    # encoded_function_resource_id=$(url_encode_with_capital_hex "$FunctionAppResourceId")
+    # local encoded_alt_resource_id
+    # encoded_alt_resource_id=$(url_encode_with_capital_hex "$LoadTestResourceId")
 
-    local perf_optimizer_url="https://portal.azure.com/#view/Microsoft_Azure_CloudNativeTesting/TestProfileRun/resourceId/$encoded_alt_resource_id/testProfileId/$test_profile_id/openingFromBlade~/true/sourceResourceId/$encoded_function_resource_id"
-    echo "Performance Optimizer URL - $perf_optimizer_url"
+    # local perf_optimizer_url="https://portal.azure.com/#view/Microsoft_Azure_CloudNativeTesting/TestProfileRun/resourceId/$encoded_alt_resource_id/testProfileId/$test_profile_id/openingFromBlade~/true/sourceResourceId/$encoded_function_resource_id"
+    # echo "Performance Optimizer URL - $perf_optimizer_url"
 
     # Uncomment the following line to poll the test profile run
     # poll_test_profile_run "$test_profile_run_url"
