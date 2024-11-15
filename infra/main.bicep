@@ -203,3 +203,4 @@ output LOADTEST_DP_URL string = loadtesting.outputs.uri
 output LOADTEST_PROFILE_ID string =  testProfileId
 output LOADTEST_TEST_ID string = loadtestTestId
 output AZURE_LOADTEST_RESOURCE_NAME string = loadtesting.outputs.name
+output AZURE_LOADTEST_RESOURCE_ID string = loadtesting.outputs.id
