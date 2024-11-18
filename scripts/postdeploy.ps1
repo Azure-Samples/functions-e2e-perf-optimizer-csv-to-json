@@ -328,8 +328,9 @@ function Create-And-Configure-LoadTest {
     Add-AppComponentMetrics -MetricName "OnDemandFunctionExecutionUnits" -Aggregation "Average"
     Add-AppComponentMetrics -MetricName "AlwaysReadyFunctionExecutionUnits" -Aggregation "Average"
     Add-AppComponentMetrics -MetricName "AlwaysReadyUnits" -Aggregation "Average"
+}
 
-    # Upload Test Plan
+# Upload Test Plan
     Log "Upload test plan to test with testId: $TestId"
     $TestPlan = Get-UrlTestConfig -FunctionName $FunctionAppName -TriggerName $FunctionAppTriggerName -VirtualUsers $VirtualUsers -DurationInSeconds $TestDurationInSec -RampUpTime $RampUpTime
     $TestPlanUploadURL = "$DataPlaneURL/tests/$TestId/files/$TestFileName`?api-version=$ApiVersion`&fileType=URL_TEST_CONFIG"
