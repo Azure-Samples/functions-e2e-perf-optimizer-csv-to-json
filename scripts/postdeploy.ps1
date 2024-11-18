@@ -369,10 +369,7 @@ $TestProfileRunRequest = @{
     "displayName"   = $TestProfileRunDisplayName;
 }
 
-$TestProfileRunId = New-Guid 
-$testProfileRunUrl = "$DataPlaneURL/test-profile-runs/$TestProfileRunId" + "?api-version=$ApiVersion"
-
-$TestProfileRunId = (New-Guid).ToString()
+$TestProfileRunId = (New-Guid).ToString().ToLower()
 Log "Creating TestProfileRun with ID: $TestProfileRunId"
 $TestProfileRunURL = "$DataPlaneURL/test-profile-runs/$TestProfileRunId`?api-version=$ApiVersion"
 
