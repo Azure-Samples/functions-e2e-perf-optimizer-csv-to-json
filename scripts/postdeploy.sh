@@ -50,10 +50,7 @@ get_function_default_key() {
     local function_app_name="$1"
     local function_app_trigger_name="$2"
     local key
-    if ! key=$(run_az_cli_command "az functionapp function keys list -g \"$ResourceGroupName\" -n \"$function_app_name\" --function-name \"$function_app_trigger_name\" --query default"); then
-        echo -e "Error: Failed to get the default function key for the $function_app_trigger_name"
-        exit 1
-    fi
+    key=$(run_az_cli_command "az functionapp function keys list -g \"$ResourceGroupName\" -n \"$function_app_name\" --function-name \"$function_app_trigger_name\" --query default");
     echo "${key//\"/}"
 }
 
@@ -126,10 +123,8 @@ upload_test_file() {
     local wait_for_completion="${3:-true}"
     local access_token
     access_token=$(get_load_testing_access_token)
-    local content
-    content=$(echo -n "$file_content" | base64)
     local resp
-    resp=$(curl -X PUT -H "Authorization: Bearer $access_token" -H "Content-Type: application/octet-stream" --data-binary "$content" "$url")
+    resp=$(curl -X PUT -H "Authorization: Bearer $access_token" -H "Content-Type: application/octet-stream" --data-binary "$file_content" "$url")
     echo "Upload Status: $(echo "$resp" | jq -r '.validationStatus')"
     local poll_count=0
     if [ "$wait_for_completion" == "true" ]; then
@@ -249,14 +244,15 @@ create_and_configure_load_test() {
     local load_test_display_name="$4"
     local engine_instances="$5"
     local function_app_name="$6"
-    local function_app_component_type="$7"
-    local function_app_resource_id="$8"
-    local virtual_users="$9"
-    local test_duration_in_sec="${10}"
-    local ramp_up_time="${11}"
-    local data_plane_url="${12}"
-    local test_file_name="${13}"
-    local api_version="${14}"
+    local function_app_trigger_name="$7"
+    local function_app_component_type="$8"
+    local function_app_resource_id="$9"
+    local virtual_users="${10}"
+    local test_duration_in_sec="${11}"
+    local ramp_up_time="${12}"
+    local data_plane_url="${13}"
+    local test_file_name="${14}"
+    local api_version="${15}"
 
     log "Creating test with testId: $test_id"
 
@@ -269,6 +265,18 @@ create_and_configure_load_test() {
     fi
     echo -e "Successfully created load test $test_id in the Azure Load Testing Resource $load_test_resource_name"
 
+    # Upload Test Plan
+    log "Upload test plan to test with testId: $test_id"
+    test_plan=$(get_url_test_config "$function_app_name" "$function_app_trigger_name" "$virtual_users" "$test_duration_in_sec" "$ramp_up_time")
+    test_plan_upload_url="$data_plane_url/tests/$test_id/files/$test_file_name?api-version=$api_version&fileType=URL_TEST_CONFIG"
+
+    if upload_test_file "$test_plan_upload_url" "$test_plan"; then
+        echo -e "Successfully uploaded the test plan to the test"
+    else
+        echo -e "Error: Failed to upload test plan $test_plan to the test $test_id in the Azure Load Testing Resource $load_test_resource_name"
+        exit 1
+    fi
+    
     # Configure App Components and metrics
     log "Configuring app component and metrics"
 
@@ -282,18 +290,6 @@ create_and_configure_load_test() {
     add_app_component_metrics "OnDemandFunctionExecutionUnits" "Average"
     add_app_component_metrics "AlwaysReadyFunctionExecutionUnits" "Average"
     add_app_component_metrics "AlwaysReadyUnits" "Average"
-
-    # Upload Test Plan
-    log "Upload test plan to test with testId: $test_id"
-    test_plan=$(get_url_test_config "$function_app_name" "$function_app_trigger_name" "$virtual_users" "$test_duration_in_sec" "$ramp_up_time")
-    test_plan_upload_url="$data_plane_url/tests/$test_id/files/$test_file_name?api-version=$api_version&fileType=URL_TEST_CONFIG"
-
-    if upload_test_file "$test_plan_upload_url" "$test_plan"; then
-        echo -e "Successfully uploaded the test plan to the test"
-    else
-        echo -e "Error: Failed to upload test plan $test_plan to the test $test_id in the Azure Load Testing Resource $load_test_resource_name"
-        exit 1
-    fi
 }
 
 create_test_profile_run() {
@@ -331,7 +327,7 @@ EOF
 az extension add --name load
 
 # Create and configure test
-create_and_configure_load_test "$TestId" "$LoadTestResourceName" "$ResourceGroupName" "$LoadTestDisplayName" "$EngineInstances" "$FunctionAppName" "$FunctionAppComponentType" "$FunctionAppResourceId" "$VirtualUsers" "$TestDurationInSec" "$RampUpTime" "$DataPlaneURL" "$TestFileName" "$ApiVersion"
+create_and_configure_load_test "$TestId" "$LoadTestResourceName" "$ResourceGroupName" "$LoadTestDisplayName" "$EngineInstances" "$FunctionAppName" "$FunctionAppTriggerName" "$FunctionAppComponentType" "$FunctionAppResourceId" "$VirtualUsers" "$TestDurationInSec" "$RampUpTime" "$DataPlaneURL" "$TestFileName" "$ApiVersion"
 
 # Create Test Profile
 create_test_profile "$TestProfileDisplayName" "$TestProfileDescription" "$TestId" "$FunctionAppResourceId" "$DataPlaneURL" "$TestProfileId" "$ApiVersion"
