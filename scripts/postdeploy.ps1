@@ -285,6 +285,7 @@ function Create-And-Configure-LoadTest {
         [string]$LoadTestDisplayName,
         [int]$EngineInstances,
         [string]$FunctionAppName,
+        [string]$FunctionAppTriggerName,
         [string]$FunctionAppComponentType,
         [string]$FunctionAppResourceId,
         [int]$VirtualUsers,
@@ -312,6 +313,20 @@ function Create-And-Configure-LoadTest {
         exit 1
     }
 
+    # Upload Test Plan
+    Log "Upload test plan to test with testId: $TestId"
+    $TestPlan = Get-UrlTestConfig -FunctionName $FunctionAppName -TriggerName $FunctionAppTriggerName -VirtualUsers $VirtualUsers -DurationInSeconds $TestDurationInSec -RampUpTime $RampUpTime
+    $TestPlanUploadURL = "$DataPlaneURL/tests/$TestId/files/$TestFileName`?api-version=$ApiVersion`&fileType=URL_TEST_CONFIG"
+
+    try {
+        $TestPlanUploadResp = Upload-TestFile -URL $TestPlanUploadURL -FileContent $TestPlan
+        Write-Host -ForegroundColor Green "Successfully uploaded the test plan to the test"
+    } catch {
+        Write-Host -ForegroundColor Red "Error: Failed to upload test plan $TestPlan to the test $TestId in the Azure Load Testing Resource $LoadTestResourceName"
+        Write-Host $_.Exception.Message
+        exit 1
+    }
+
     # Configure App Components and metrics
     Log "Configuring app component and metrics"
 
@@ -327,21 +342,7 @@ function Create-And-Configure-LoadTest {
     Add-AppComponentMetrics -MetricName "AlwaysReadyFunctionExecutionCount" -Aggregation "Total"
     Add-AppComponentMetrics -MetricName "OnDemandFunctionExecutionUnits" -Aggregation "Average"
     Add-AppComponentMetrics -MetricName "AlwaysReadyFunctionExecutionUnits" -Aggregation "Average"
-    Add-AppComponentMetrics -MetricName "AlwaysReadyUnits" -Aggregation "Average"
-
-    # Upload Test Plan
-    Log "Upload test plan to test with testId: $TestId"
-    $TestPlan = Get-UrlTestConfig -FunctionName $FunctionAppName -TriggerName $FunctionAppTriggerName -VirtualUsers $VirtualUsers -DurationInSeconds $TestDurationInSec -RampUpTime $RampUpTime
-    $TestPlanUploadURL = "$DataPlaneURL/tests/$TestId/files/$TestFileName`?api-version=$ApiVersion`&fileType=URL_TEST_CONFIG"
-
-    try {
-        $TestPlanUploadResp = Upload-TestFile -URL $TestPlanUploadURL -FileContent $TestPlan
-        Write-Host -ForegroundColor Green "Successfully uploaded the test plan to the test"
-    } catch {
-        Write-Host -ForegroundColor Red "Error: Failed to upload test plan $TestPlan to the test $TestId in the Azure Load Testing Resource $LoadTestResourceName"
-        Write-Host $_.Exception.Message
-        exit 1
-    }
+    Add-AppComponentMetrics -MetricName "AlwaysReadyUnits" -Aggregation "Average"  
 }
 
 function Log($String) {
@@ -356,7 +357,7 @@ function LogDebug($String) {
 az extension add --name load
 
 # Create and configure test
-Create-And-Configure-LoadTest -TestId $TestId -LoadTestResourceName $LoadTestResourceName -ResourceGroupName $ResourceGroupName -LoadTestDisplayName $LoadTestDisplayName -EngineInstances $EngineInstances -FunctionAppName $FunctionAppName -FunctionAppComponentType $FunctionAppComponentType -FunctionAppResourceId $FunctionAppResourceId -VirtualUsers $VirtualUsers -TestDurationInSec $TestDurationInSec -RampUpTime $RampUpTime -DataPlaneURL $DataPlaneURL -TestFileName $TestFileName -ApiVersion $ApiVersion
+Create-And-Configure-LoadTest -TestId $TestId -LoadTestResourceName $LoadTestResourceName -ResourceGroupName $ResourceGroupName -LoadTestDisplayName $LoadTestDisplayName -EngineInstances $EngineInstances -FunctionAppName $FunctionAppName -FunctionAppTriggerName $FunctionAppTriggerName -FunctionAppComponentType $FunctionAppComponentType -FunctionAppResourceId $FunctionAppResourceId -VirtualUsers $VirtualUsers -TestDurationInSec $TestDurationInSec -RampUpTime $RampUpTime -DataPlaneURL $DataPlaneURL -TestFileName $TestFileName -ApiVersion $ApiVersion
 
 # Create Test Profile
 Create-TestProfile -TestProfileDisplayName $TestProfileDisplayName -TestProfileDescription $TestProfileDescription -TestId $TestId -FunctionAppResourceId $FunctionAppResourceId -DataPlaneURL $DataPlaneURL -TestProfileId $TestProfileId -ApiVersion $ApiVersion
@@ -369,10 +370,7 @@ $TestProfileRunRequest = @{
     "displayName"   = $TestProfileRunDisplayName;
 }
 
-$TestProfileRunId = New-Guid 
-$testProfileRunUrl = "$DataPlaneURL/test-profile-runs/$TestProfileRunId" + "?api-version=$ApiVersion"
-
-$TestProfileRunId = (New-Guid).ToString()
+$TestProfileRunId = (New-Guid).ToString().ToLower()
 Log "Creating TestProfileRun with ID: $TestProfileRunId"
 $TestProfileRunURL = "$DataPlaneURL/test-profile-runs/$TestProfileRunId`?api-version=$ApiVersion"
 
